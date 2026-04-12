@@ -32,14 +32,8 @@ main:
     mv   a0, s0              # a0 = my file descriptor
     li   a1, 0               # offset = 0
     li   a2, 2               # SEEK_END = 2 (go to the end of the file)
-    ecall                    # Now a0 has the file size!
+    ecall                    # Now a0 has the file size
     mv   s3, a0              # save the file size
-
-    # check if the file might have a trailing newline
-    # If the last character is '\n', subtract 1 from the size
-    # (because newlines aren't part of the palindrome check)
-    addi t0, s3, -1          # t0 = position of last byte
-    blt  t0, zero, is_palindrome  # If file is empty, it's a palindrome (edge case)
 
     # I seek to the last byte to check if it's a newline
     li   a7, 62              # lseek again
@@ -67,7 +61,7 @@ no_newline:
     addi s2, s3, -1          # Right pointer starts at the end (position size - 1)
 
 check_loop:
-    bge  s1, s2, is_palindrome  # If left >= right, they've met in the middle - it's a palindrome!
+    bge  s1, s2, is_palindrome  # If left >= right, they've met in the middle - it's a palindrome
 
     # read the character at position s1 (left pointer)
     li   a7, 62              # lseek to position s1
@@ -103,7 +97,7 @@ check_loop:
 
     bne  t0, t1, not_palindrome  # If they don't match, it's NOT a palindrome
 
-    # They match! move both pointers inward
+    # They match move both pointers inward
     addi s1, s1, 1           # move left pointer one step to the right
     addi s2, s2, -1          # move right pointer one step to the left
     j    check_loop           # check the next pair
