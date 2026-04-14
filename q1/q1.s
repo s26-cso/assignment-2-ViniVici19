@@ -1,3 +1,8 @@
+.data
+# Reserve memory for 100 nodes (12 bytes per node = 1200 bytes)
+node_pool: .space 1200
+# Keep a pointer to the next free spot (starts at the beginning of the pool)
+free_ptr:  .word node_pool 
 
 .text
 
@@ -5,27 +10,24 @@
 # I receive the value in a0, and I need to return a pointer to a new Node
 .globl make_node
 make_node:
-    # I need to save my return address and the value, because malloc will rewrite them
-    addi sp, sp, -8          # making room on the stack for 2 things
-    sw   ra, 4(sp)           # save return address so I can get back later
-    sw   a0, 0(sp)           # save the value (a0) because malloc will overwrite a0
+    # I receive the value in a0. I'll temporarily move it to t2 so I don't lose it.
+    mv   t2, a0              
 
-    # I need 12 bytes for my Node struct (4 for val, 4 for left, 4 for right)
-    li   a0, 12              # asking malloc for 12 bytes
-    call malloc              # malloc gives me a pointer in a0
+    # Get the address of the next free node space from my pre-allocated pool
+    la   t0, free_ptr        # load address of my pointer variable
+    lw   a0, 0(t0)           # a0 now holds the address for the NEW node
 
-    # Now a0 has the pointer to my new node
-    lw   t0, 0(sp)           # get back the value saved earlier
-    sw   t0, 0(a0)           # store the value into node->val
+    # Update the free pointer to point to the NEXT available 12 bytes
+    addi t1, a0, 12          # t1 = a0 + 12
+    sw   t1, 0(t0)           # save it back into free_ptr
+
+    # 3. Initialize my new node
+    sw   t2, 0(a0)           # store the value (from t2) into node->val
     sw   zero, 4(a0)         # set node->left = NULL
     sw   zero, 8(a0)         # set node->right = NULL
 
-    # a0 already has the pointer to the node, so that's my return value
-    lw   ra, 4(sp)           # restore return address
-    addi sp, sp, 8           # clean up the stack space I used
-    ret                      # return the pointer to the new node
-
-
+    # a0 already holds the pointer to my new node, so just return
+    ret
 # insert(Node* root, int val)
 # I receive root in a0 and the value to insert in a1 and need to return the root of the tree
 .globl insert
@@ -35,9 +37,7 @@ insert:
     sw   s0, 8(sp)           # save s0 for root
     sw   s1, 4(sp)           # save s1 for the value
     sw   s2, 0(sp)           # save s2 for the parent
-
     mv   s1, a1              # copying of the value I want to insert in s1
-
     # If root is NULL, I just need to make a new node and return it
     bne  a0, zero, insert_not_null  # If root isn't NULL, I skip ahead
     mv   a0, s1              # put the value in a0 as argument for make_node
@@ -57,7 +57,7 @@ insert_go_right:
     lw   t1, 8(s2)           # load the right child pointer
     beq  t1, zero, insert_attach_right  # If right child is NULL, attach here
     mv   s2, t1              # Otherwise, move down to the right child
-    j    insert_walk          # keep moving down the tree
+    j    insert_walk         # keep moving down the tree
 
 insert_attach_right:
     mv   a0, s1              # put the value in a0 for make_node
@@ -70,7 +70,7 @@ insert_go_left:
     lw   t1, 4(s2)           # load the left child pointer
     beq  t1, zero, insert_attach_left   # If left child is NULL, attach here
     mv   s2, t1              # Otherwise, move down to the left child
-    j    insert_walk          # keep moving down the tree
+    j    insert_walk         # keep moving down the tree
 
 insert_attach_left:
     mv   a0, s1              # put the value in a0 for make_node
@@ -103,11 +103,11 @@ get_loop:
 
     # My value > node's value, so go right
     lw   a0, 8(a0)           # move to the right child
-    j    get_loop             # keep searching
+    j    get_loop            # keep searching
 
 get_left:
     lw   a0, 4(a0)           # move to the left child
-    j    get_loop             # keep searching
+    j    get_loop            # keep searching
 
 get_found:
     ret                      # a0 already points to the node I found, so I just return
@@ -152,4 +152,4 @@ getAtMost_go_left:
 
 getAtMost_done:
     mv   a0, t3              # put my best answer in a0 to return it
-    ret                      # return the greatest value <= target (or -1 if none)
+    ret                      # return the greatest value <= target

@@ -12,9 +12,9 @@ int main()
     while (scanf("%s %d %d", op, &num1, &num2) == 3)
     {
         /* build the library filename: "lib<op>.so" */
-        /* For example, if op is "add", build "libadd.so" */
+        /* For example, if op is add, build "libadd.so" */
         char lib_name[32];
-        snprintf(lib_name, sizeof(lib_name), "./lib%s.so", op);
+        sprintf(lib_name, sizeof(lib_name), "./lib%s.so");
         /* add "./" at the front to make sure it looks in the current directory */
         /* try to open the shared library */
         /* RTLD_LAZY means only load the symbols when I actually need them */
@@ -22,7 +22,7 @@ int main()
         if (!handle)
         {
             /* If dlopen fails, something is wrong, maybe the library doesn't exist */
-            fprintf(stderr, "couldn't open library %s: %s\n", lib_name, dlerror());
+            fprintf(stderr, "library dne %s: %s\n", lib_name, dlerror());
             continue;  /* skip this operation and try the next line */
         }
         /* clear any existing errors before calling dlsym */
@@ -37,11 +37,11 @@ int main()
         char *error = dlerror();
         if (error != NULL)
         {
-            fprintf(stderr, "couldn't find function %s: %s\n", op, error);
+            fprintf(stderr, "function dne %s: %s\n", op, error);
             dlclose(handle);  /* close the library before moving on */
             continue;
         }
-        /* call the function with my two numbers and get the result! */
+        /* call the function with my two numbers and get the result */
         int result = operation(num1, num2);
         /* print the result */
         printf("%d\n", result);

@@ -1,6 +1,14 @@
 .data
-space:    .asciz " "         # need this to print spaces between numbers
-newline:  .asciz "\n"        # need this for the newline at the end
+space:    .string " "          # need this to print spaces between numbers
+newline:  .string "\n"         # need this for the newline at the end
+fmt_int:  .string "%d"         # use this format string to print integers
+
+# To make things simple, I am reserving fixed memory spaces here 
+# instead of doing complicated dynamic allocation (malloc). 
+# 400 bytes gives me room for exactly 100 integers.
+arr:      .space 400           # my array for parsed integers
+result:   .space 400           # my array for the final answers
+my_stack: .space 400           # my array to act as the stack
 
 .text
 .globl main
@@ -21,33 +29,22 @@ main:
     mv   s1, a1              # save argv
     addi s2, a0, -1          # n = argc - 1 (skip the program name)
 
-    # need to allocate memory for 3 arrays, each of size n*4 bytes:
-    #   1. arr[] - to hold the parsed integers
-    #   2. result[] - to hold the answers
-    #   3. stack[] - to use as my stack
-
-    slli a0, s2, 2           # calculate n * 4 bytes for my integer array
-    call malloc              # ask for memory
-    mv   s3, a0              # save the pointer to my array
-
-    slli a0, s2, 2           # calculate n * 4 bytes for my result array
-    call malloc
-    mv   s4, a0              # save the pointer to my result array
-
-    slli a0, s2, 2           # calculate n * 4 bytes for my stack
-    call malloc
-    mv   s5, a0              # save the pointer to my stack
+    # load the addresses of my pre-allocated arrays
+    la   s3, arr             # s3 = address of arr
+    la   s4, result          # s4 = address of result
+    la   s5, my_stack        # s5 = address of my_stack
+    
     li   s7, 0               # start my loop counter at 0
 
 parse_loop:
     bge  s7, s2, parse_done  # If all n elements have been parsed, then done
     addi t0, s7, 1           # t0 = i + 1 (to skip argv[0] which is program name)
-    slli t0, t0, 2           # t0 = (i+1) * 4 (byte offset into argv)
+    slli t0, t0, 2           # multiply by 4 (shift left 2) to get byte offset
     add  t0, s1, t0          # t0 = &argv[i+1]
     lw   a0, 0(t0)           # a0 = argv[i+1] (the string pointer)
     call atoi                # convert the string to an integer, result in a0
 
-    slli t1, s7, 2           # t1 = i * 4 (byte offset into my array)
+    slli t1, s7, 2           # multiply i by 4 to get byte offset into my array
     add  t1, s3, t1          # t1 = &arr[i]
     sw   a0, 0(t1)           # store the parsed integer into arr[i]
 
@@ -60,9 +57,9 @@ parse_done:
 
 init_result:
     bge  s7, s2, init_done   # If all elements have been initialized, then done
-    slli t0, s7, 2           # t0 = i * 4
+    slli t0, s7, 2           # t0 = i * 4 (byte offset)
     add  t0, s4, t0          # t0 = &result[i]
-    li   t1, -1              # store -1 as the default
+    li   t1, -1              # load -1 as the default answer
     sw   t1, 0(t0)           # result[i] = -1
     addi s7, s7, 1           # Next element
     j    init_result
@@ -87,7 +84,7 @@ pop_loop:
 
     # peek at the top of my stack to get the index stored there
     addi t3, s6, -1          # t3 = stack_top_index - 1
-    slli t3, t3, 2           # t3 *= 4
+    slli t3, t3, 2           # t3 *= 4 (byte offset)
     add  t3, s5, t3          # t3 = &stack[top-1]
     lw   t4, 0(t3)           # t4 = stack.top() (this is an index into arr)
 
@@ -99,8 +96,8 @@ pop_loop:
     bgt  t5, t0, pop_done    # If arr[stack.top()] > arr[i], stop (found something greater)
 
     # arr[stack.top()] <= arr[i], so I pop it off
-    addi s6, s6, -1          # pop by decrementing the stack top index
-    j    pop_loop             # check again
+    addi s6, s6, -1          # pop by simply decrementing the stack top index
+    j    pop_loop            # check again
 
 pop_done:
     # If the stack isn't empty, the top has the index of the next greater element
@@ -153,14 +150,6 @@ print_done:
     la   a0, newline
     call print_string
 
-    # free allocated memory (being a good citizen)
-    mv   a0, s3
-    call free
-    mv   a0, s4
-    call free
-    mv   a0, s5
-    call free
-
     # return 0 from main
     li   a0, 0
 
@@ -176,8 +165,6 @@ print_done:
     lw   s7, 0(sp)
     addi sp, sp, 36          # clean up the stack
     ret
-
-
 # print_int(int value in a0)
 # print an integer using printf with "%d" format
 print_int:
@@ -204,6 +191,3 @@ print_string:
     lw   ra, 0(sp)
     addi sp, sp, 4
     ret
-
-.data
-fmt_int:  .asciz "%d"        # use this format string to print integers
