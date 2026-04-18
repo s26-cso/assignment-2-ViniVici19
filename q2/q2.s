@@ -3,13 +3,6 @@ space:    .string " "          # need this to print spaces between numbers
 newline:  .string "\n"         # need this for the newline at the end
 fmt_int:  .string "%d"         # use this format string to print integers
 
-# To make things simple, I am reserving fixed memory spaces here 
-# instead of doing complicated dynamic allocation (malloc). 
-# 400 bytes gives me room for exactly 100 integers.
-arr:      .space 400           # my array for parsed integers
-result:   .space 400           # my array for the final answers
-my_stack: .space 400           # my array to act as the stack
-
 .text
 .globl main
 main:
@@ -29,10 +22,22 @@ main:
     mv   s1, a1              # save argv
     addi s2, a0, -1          # n = argc - 1 (skip the program name)
 
-    # load the addresses of my pre-allocated arrays
-    la   s3, arr             # s3 = address of arr
-    la   s4, result          # s4 = address of result
-    la   s5, my_stack        # s5 = address of my_stack
+    # I need to allocate memory for 3 arrays, each of size n*4 bytes:
+    #   1. arr[] - to hold the parsed integers
+    #   2. result[] - to hold the answers
+    #   3. stack[] - to use as my stack
+
+    slli a0, s2, 2           # calculate n * 4 bytes for my integer array
+    call malloc              # ask for memory
+    mv   s3, a0              # save the pointer to my array
+
+    slli a0, s2, 2           # calculate n * 4 bytes for my result array
+    call malloc
+    mv   s4, a0              # save the pointer to my result array
+
+    slli a0, s2, 2           # calculate n * 4 bytes for my stack
+    call malloc
+    mv   s5, a0              # save the pointer to my stack
     
     li   s7, 0               # start my loop counter at 0
 

@@ -13,8 +13,7 @@ int main()
     {
         /* build the library filename: "lib<op>.so" */
         /* For example, if op is add, build "libadd.so" */
-        char lib_name[32];
-        sprintf(lib_name, sizeof(lib_name), "./lib%s.so");
+        snprintf(lib_name, sizeof(lib_name), "./lib%s.so", op);
         /* add "./" at the front to make sure it looks in the current directory */
         /* try to open the shared library */
         /* RTLD_LAZY means only load the symbols when I actually need them */
@@ -22,7 +21,7 @@ int main()
         if (!handle)
         {
             /* If dlopen fails, something is wrong, maybe the library doesn't exist */
-            fprintf(stderr, "library dne %s: %s\n", lib_name, dlerror());
+            fprintf(stderr, "library dne %s: %s", lib_name, dlerror());
             continue;  /* skip this operation and try the next line */
         }
         /* clear any existing errors before calling dlsym */
@@ -37,7 +36,7 @@ int main()
         char *error = dlerror();
         if (error != NULL)
         {
-            fprintf(stderr, "function dne %s: %s\n", op, error);
+            fprintf(stderr, "function dne %s: %s", op, error);
             dlclose(handle);  /* close the library before moving on */
             continue;
         }

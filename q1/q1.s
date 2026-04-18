@@ -1,28 +1,21 @@
-.data
-# Reserve memory for 100 nodes (12 bytes per node = 1200 bytes)
-node_pool: .space 1200
-# Keep a pointer to the next free spot (starts at the beginning of the pool)
-free_ptr:  .word node_pool 
-
 .text
 
 # make_node(int val)
 # I receive the value in a0, and I need to return a pointer to a new Node
 .globl make_node
 make_node:
-    # I receive the value in a0. I'll temporarily move it to t2 so I don't lose it.
-    mv   t2, a0              
+    # I need to save my return address and the value, because malloc will rewrite them
+    addi sp, sp, -8          # making room on the stack for 2 things
+    sw   ra, 4(sp)           # save return address so I can get back later
+    sw   a0, 0(sp)           # save the value (a0) because malloc will overwrite a0
 
-    # Get the address of the next free node space from my pre-allocated pool
-    la   t0, free_ptr        # load address of my pointer variable
-    lw   a0, 0(t0)           # a0 now holds the address for the NEW node
+    # I need 12 bytes for my Node struct (4 for val, 4 for left, 4 for right)
+    li   a0, 12              # asking malloc for 12 bytes
+    call malloc              # malloc gives me a pointer in a0
 
-    # Update the free pointer to point to the NEXT available 12 bytes
-    addi t1, a0, 12          # t1 = a0 + 12
-    sw   t1, 0(t0)           # save it back into free_ptr
-
-    # 3. Initialize my new node
-    sw   t2, 0(a0)           # store the value (from t2) into node->val
+    # Now a0 has the pointer to my new node
+    lw   t0, 0(sp)           # get back the value saved earlier
+    sw   t0, 0(a0)           # store the value into node->val
     sw   zero, 4(a0)         # set node->left = NULL
     sw   zero, 8(a0)         # set node->right = NULL
 
