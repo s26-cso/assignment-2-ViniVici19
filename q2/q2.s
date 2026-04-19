@@ -7,16 +7,17 @@ fmt_int:  .string "%d"         # use this format string to print integers
 .globl main
 main:
     # save all the callee-saved registers I'll need
-    addi sp, sp, -36         # make room for saving registers
-    sw   ra, 32(sp)          # save return address
-    sw   s0, 28(sp)          # s0 = argc (number of args including program name)
-    sw   s1, 24(sp)          # s1 = pointer to argv
-    sw   s2, 20(sp)          # s2 = n (number of actual elements = argc - 1)
-    sw   s3, 16(sp)          # s3 = pointer to my array of parsed integers
-    sw   s4, 12(sp)          # s4 = pointer to my result array
-    sw   s5, 8(sp)           # s5 = pointer to my stack array
-    sw   s6, 4(sp)           # s6 = stack top index (how many things on my stack)
-    sw   s7, 0(sp)           # s7 = loop counter
+    # on RV64, each register is 8 bytes, so I use sd/ld instead of sw/lw
+    addi sp, sp, -80         # make room for 9 registers * 8 bytes = 72, rounded up to 80 (16-byte aligned)
+    sd   ra, 72(sp)          # save return address
+    sd   s0, 64(sp)          # s0 = argc (number of args including program name)
+    sd   s1, 56(sp)          # s1 = pointer to argv
+    sd   s2, 48(sp)          # s2 = n (number of actual elements = argc - 1)
+    sd   s3, 40(sp)          # s3 = pointer to my array of parsed integers
+    sd   s4, 32(sp)          # s4 = pointer to my result array
+    sd   s5, 24(sp)          # s5 = pointer to my stack array
+    sd   s6, 16(sp)          # s6 = stack top index (how many things on my stack)
+    sd   s7, 8(sp)           # s7 = loop counter
 
     mv   s0, a0              # save argc
     mv   s1, a1              # save argv
@@ -44,14 +45,14 @@ main:
 parse_loop:
     bge  s7, s2, parse_done  # If all n elements have been parsed, then done
     addi t0, s7, 1           # t0 = i + 1 (to skip argv[0] which is program name)
-    slli t0, t0, 2           # multiply by 4 (shift left 2) to get byte offset
+    slli t0, t0, 3           # multiply by 8 (shift left 3) because pointers are 8 bytes on RV64
     add  t0, s1, t0          # t0 = &argv[i+1]
-    lw   a0, 0(t0)           # a0 = argv[i+1] (the string pointer)
+    ld   a0, 0(t0)           # a0 = argv[i+1] (the string pointer, 8 bytes on RV64)
     call atoi                # convert the string to an integer, result in a0
 
-    slli t1, s7, 2           # multiply i by 4 to get byte offset into my array
+    slli t1, s7, 2           # multiply i by 4 to get byte offset into my array (ints are still 4 bytes)
     add  t1, s3, t1          # t1 = &arr[i]
-    sw   a0, 0(t1)           # store the parsed integer into arr[i]
+    sw   a0, 0(t1)           # store the parsed integer into arr[i] (int = 4 bytes)
 
     addi s7, s7, 1           # move to the next element
     j    parse_loop
@@ -89,7 +90,7 @@ pop_loop:
 
     # peek at the top of my stack to get the index stored there
     addi t3, s6, -1          # t3 = stack_top_index - 1
-    slli t3, t3, 2           # t3 *= 4 (byte offset)
+    slli t3, t3, 2           # t3 *= 4 (byte offset, stack stores int indices)
     add  t3, s5, t3          # t3 = &stack[top-1]
     lw   t4, 0(t3)           # t4 = stack.top() (this is an index into arr)
 
@@ -159,40 +160,40 @@ print_done:
     li   a0, 0
 
     # restore saved registers
-    lw   ra, 32(sp)
-    lw   s0, 28(sp)
-    lw   s1, 24(sp)
-    lw   s2, 20(sp)
-    lw   s3, 16(sp)
-    lw   s4, 12(sp)
-    lw   s5, 8(sp)
-    lw   s6, 4(sp)
-    lw   s7, 0(sp)
-    addi sp, sp, 36          # clean up the stack
+    ld   ra, 72(sp)
+    ld   s0, 64(sp)
+    ld   s1, 56(sp)
+    ld   s2, 48(sp)
+    ld   s3, 40(sp)
+    ld   s4, 32(sp)
+    ld   s5, 24(sp)
+    ld   s6, 16(sp)
+    ld   s7, 8(sp)
+    addi sp, sp, 80          # clean up the stack
     ret
+
 # print_int(int value in a0)
 # print an integer using printf with "%d" format
 print_int:
-    addi sp, sp, -8
-    sw   ra, 4(sp)
-    sw   a0, 0(sp)           # save the value
+    addi sp, sp, -16
+    sd   ra, 8(sp)           # save return address (8 bytes on RV64)
 
     mv   a1, a0              # a1 = the integer to print (second arg for printf)
     la   a0, fmt_int         # a0 = format string "%d"
     call printf
 
-    lw   ra, 4(sp)
-    addi sp, sp, 8
+    ld   ra, 8(sp)
+    addi sp, sp, 16
     ret
 
 # print_string(char* str in a0)
 # print a string using printf
 print_string:
-    addi sp, sp, -4
-    sw   ra, 0(sp)
+    addi sp, sp, -16
+    sd   ra, 8(sp)           # save return address (8 bytes on RV64)
 
     call printf              # printf(a0) - a0 already has the string
 
-    lw   ra, 0(sp)
-    addi sp, sp, 4
+    ld   ra, 8(sp)
+    addi sp, sp, 16
     ret

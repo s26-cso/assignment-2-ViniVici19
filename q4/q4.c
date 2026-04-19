@@ -6,6 +6,7 @@ int main()
 {
     /* store the operation name (max 5 chars as per the problem), plus some buffer */
     char op[16];
+    char lib_name[32];        /* buffer for building the library filename like "./libadd.so" */
     int num1, num2;
     /* keep reading lines until there's no more input (EOF) */
     /* scanf returns the number of items successfully read; if it's not 3, I stop */

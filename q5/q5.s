@@ -8,12 +8,12 @@ buf_right:  .byte 0               # use this tiny 1-byte buffer for the right ch
 .text
 .globl main
 main:
-    addi sp, sp, -32         # make room on the stack
-    sw   ra, 28(sp)          # save return address
-    sw   s0, 24(sp)          # s0 = file descriptor
-    sw   s1, 20(sp)          # s1 = left pointer (starts at 0)
-    sw   s2, 16(sp)          # s2 = right pointer (starts at end - 1)
-    sw   s3, 12(sp)          # s3 = file size
+    addi sp, sp, -48         # make room on the stack (16-byte aligned for RV64)
+    sd   ra, 40(sp)          # save return address (8 bytes on RV64)
+    sd   s0, 32(sp)          # s0 = file descriptor
+    sd   s1, 24(sp)          # s1 = left pointer (starts at 0)
+    sd   s2, 16(sp)          # s2 = right pointer (starts at end - 1)
+    sd   s3, 8(sp)           # s3 = file size
 
     # open the file
     # use the openat syscall (56) with AT_FDCWD (-100) to open relative to cwd
@@ -138,10 +138,10 @@ not_palindrome:
 done:
     # return 0 from main
     li   a0, 0
-    lw   ra, 28(sp)
-    lw   s0, 24(sp)
-    lw   s1, 20(sp)
-    lw   s2, 16(sp)
-    lw   s3, 12(sp)
-    addi sp, sp, 32
+    ld   ra, 40(sp)
+    ld   s0, 32(sp)
+    ld   s1, 24(sp)
+    ld   s2, 16(sp)
+    ld   s3, 8(sp)
+    addi sp, sp, 48
     ret
